@@ -5,7 +5,8 @@ CORE_MODULE = "core.core_logic"
 GENERATIONS_DIR = "memory/generations"
 
 def _now_iso():
-    return datetime.datetime.utcnow().isoformat() + "Z"
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat()
 
 def ensure_memory():
     if not os.path.exists("memory"):
@@ -66,12 +67,12 @@ def run_core():
         })
         return 0.0, str(e)
 
-def mutate_core(strategy:str="random_curve"):
+def mutate_core(strategy: str = "random_curve"):
     # Writes a new brain into core/core_logic.py
     code = (
         "def run():\n"
         "    import random, math\n"
-        "    # Strategy: " + strategy + "\n"
+        f"    # Strategy: {strategy}\n"
         "    base = random.randint(0, 100)\n"
         "    bonus = 0\n"
         "    if base < 30:\n"
@@ -79,10 +80,10 @@ def mutate_core(strategy:str="random_curve"):
         "    elif base > 70:\n"
         "        bonus = int(math.log(max(base,1)) * 2)\n"
         "    score = max(0, min(100, base + bonus))\n"
-        "    log = f\"Strategy=" + "{strategy}" + " base={base} bonus={bonus} -> score={score}\"\n"
+        f"    log = 'Strategy={strategy} base={{base}} bonus={{bonus}} -> score={{score}}'.format(base=base, bonus=bonus, score=score)\n"
         "    return {\"score\": score, \"log\": log}\n"
     )
-    with open("core/core_logic.py", "w") as f:
+    with open("core/core_logic.py", "w", encoding="utf-8") as f:
         f.write(code)
 
 def main(threshold:float=30.0, sleep_seconds:float=2.5):
