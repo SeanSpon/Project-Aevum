@@ -1,49 +1,117 @@
 # core/core_logic.py
+"""
+Tiny stateful learner for Aevum.
+Learns y = AX + B (+ noise) with SGD and saves weights across runs.
+Crank 'BATCH' and 'STEPS' to make it "think heavier" each generation.
+"""
+
 import json, os, random
+import numpy as np
+
+# ---- knobs you can tweak ----
+BATCH = 8192         # samples per step (heavier thinking => bigger)
+STEPS = 1            # SGD steps per generation (keep >1 if you want more work)
+TARGET_A = 3.0       # ground-truth slope
+TARGET_B = 7.0       # ground-truth intercept
+NOISE = 0.2          # label noise amplitude
+WARMUP_STEPS = 100   # use boosted LR during warmup
+BASE_LR = 0.02       # base learning rate
+CLIP = 5.0           # gradient clip (helps stability)
+SCORE_SMOOTH = 0.2   # EMA smoothing for score stability, 0..1
 
 STATE_FILE = os.path.join(os.path.dirname(__file__), "state.json")
 
 def _load_state():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, "r") as f:
-            return json.load(f)
-    return {"w": random.uniform(-2, 2), "b": random.uniform(-1, 1), "lr": 0.01, "step": 0}
+            try:
+                s = json.load(f)
+                # add defaults if old state is missing keys
+                s.setdefault("score_ema", None)
+                s.setdefault("lr", BASE_LR)
+                return s
+            except Exception:
+                pass
+    # fresh random init
+    return {
+        "w": float(random.uniform(-2, 2)),
+        "b": float(random.uniform(-1, 1)),
+        "lr": float(BASE_LR),
+        "step": 0,
+        "score_ema": None
+    }
 
 def _save_state(s):
     with open(STATE_FILE, "w") as f:
         json.dump(s, f)
 
-def _batch(n=128):
-    xs, ys = [], []
-    for _ in range(n):
-        x = random.uniform(-10, 10)
-        y = 3.0 * x + 7.0 + random.uniform(-0.2, 0.2)  # target rule + noise
-        xs.append(x); ys.append(y)
-    return xs, ys
+def _make_batch(n=BATCH):
+    x = np.random.uniform(-10.0, 10.0, size=(n,)).astype(np.float64)
+    y = TARGET_A * x + TARGET_B + np.random.uniform(-NOISE, NOISE, size=(n,)).astype(np.float64)
+    return x, y
+
+def _sgd_step(w, b, lr):
+    x, y = _make_batch()
+    yhat = w * x + b
+    err = (yhat - y)
+    loss = np.mean(err * err)
+
+    # gradients for MSE
+    dw = 2.0 * np.mean(err * x)
+    db = 2.0 * np.mean(err)
+
+    # clip for stability
+    gnorm = np.sqrt(dw * dw + db * db)
+    if gnorm > CLIP:
+        scale = CLIP / (gnorm + 1e-12)
+        dw *= scale
+        db *= scale
+
+    # update
+    w -= lr * dw
+    b -= lr * db
+
+    return w, b, float(loss)
 
 def run():
     s = _load_state()
-    w, b, lr, step = s["w"], s["b"], s["lr"], s["step"]
+    w, b, lr, step, score_ema = s["w"], s["b"], s["lr"], s["step"], s["score_ema"]
 
-    xs, ys = _batch()
-    dw = db = loss = 0.0
-    for x, y in zip(xs, ys):
-        yhat = w * x + b
-        err = yhat - y
-        loss += err*err
-        dw += 2.0 * err * x
-        db += 2.0 * err
-    n = float(len(xs))
-    loss /= n; dw /= n; db /= n
+    # warmup → boosted LR; then cosine decay toward base LR
+    if step < WARMUP_STEPS:
+        lr_use = lr * 5.0
+    else:
+        # gentle decay factor after warmup
+        t = min(1.0, (step - WARMUP_STEPS) / 1000.0)
+        lr_use = lr * (0.5 * (1.0 + np.cos(np.pi * t)))
 
-    lr_use = lr * 5.0 if step < 50 else lr
-    w -= lr_use * dw
-    b -= lr_use * db
+    total_loss = 0.0
+    w_new, b_new = w, b
+    for _ in range(max(1, int(STEPS))):
+        w_new, b_new, loss = _sgd_step(w_new, b_new, lr_use)
+        total_loss += loss
+    avg_loss = total_loss / max(1, int(STEPS))
+
+    # score: higher when loss is lower; smoothed for stability
+    raw_score = max(0.0, min(100.0, 100.0 / (1.0 + avg_loss)))
+    if score_ema is None:
+        score = raw_score
+    else:
+        score = (1.0 - SCORE_SMOOTH) * score_ema + SCORE_SMOOTH * raw_score
+
     step += 1
-
-    score = max(0.0, min(100.0, 100.0 / (1.0 + loss)))
-    s.update({"w": w, "b": b, "lr": lr, "step": step})
+    s.update({
+        "w": float(w_new),
+        "b": float(b_new),
+        "lr": float(lr),
+        "step": int(step),
+        "score_ema": float(score)
+    })
     _save_state(s)
 
-    log = f"step={step} loss={loss:.4f} w={w:.3f} b={b:.3f} lr={lr_use:.4f}"
-    return {"score": score, "log": log}
+    log = (
+        f"step={step} loss={avg_loss:.6f} "
+        f"w={w_new:.4f} b={b_new:.4f} lr_used={lr_use:.5f} "
+        f"batch={BATCH} steps={STEPS}"
+    )
+    return {"score": float(score), "log": log}
