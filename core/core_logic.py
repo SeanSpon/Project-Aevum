@@ -9,15 +9,15 @@ import json, os, random
 import numpy as np
 
 # ---- knobs you can tweak ----
-BATCH = 8192         # samples per step (heavier thinking => bigger)
-STEPS = 1            # SGD steps per generation (keep >1 if you want more work)
+BATCH = 32768          # samples per step (heavier thinking => bigger)
+STEPS = 3            # SGD steps per generation (keep >1 if you want more work)
 TARGET_A = 3.0       # ground-truth slope
 TARGET_B = 7.0       # ground-truth intercept
-NOISE = 0.2          # label noise amplitude
+NOISE = 0.1          # label noise amplitude
 WARMUP_STEPS = 100   # use boosted LR during warmup
-BASE_LR = 0.02       # base learning rate
+BASE_LR = 0.01       # base learning rate
 CLIP = 5.0           # gradient clip (helps stability)
-SCORE_SMOOTH = 0.2   # EMA smoothing for score stability, 0..1
+SCORE_SMOOTH = 0.5   # EMA smoothing for score stability, 0..1
 
 STATE_FILE = os.path.join(os.path.dirname(__file__), "state.json")
 
