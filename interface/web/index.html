@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Project Aevum — Live Memory</title>
+<style>
+body { font-family: sans-serif; margin: 24px; }
+.entry { border: 1px solid #ddd; padding: 10px; margin: 8px 0; border-radius: 6px; }
+.mutated { background: #fff7e6; }
+.run { background: #f6ffed; }
+.error { background: #fff1f0; }
+</style>
+</head>
+<body>
+<h1>🧠 Project Aevum — Memory</h1>
+<div id="entries"></div>
+<script>
+async function load() {
+    try {
+        const resp = await fetch('../memory/memory.json', {cache: 'no-store'});
+        if (!resp.ok) throw new Error('No memory yet.');
+        const data = await resp.json();
+        const root = document.getElementById('entries');
+        root.innerHTML = '';
+        data.slice(-100).reverse().forEach(entry => {
+            const div = document.createElement('div');
+            div.className = 'entry ' + (entry.event || 'run');
+            div.innerHTML = `<b>${entry.time}</b><br>
+                event=${entry.event || 'run'} | score=${entry.score} | mutated=${entry.mutated}<br>
+                log=${entry.log}`;
+            root.appendChild(div);
+        });
+    } catch (e) {
+        document.getElementById('entries').innerHTML = '<p>'+e.message+'</p>';
+    }
+}
+load();
+</script>
+</body>
+</html>

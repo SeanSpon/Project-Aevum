@@ -1,0 +1,51 @@
+[
+  {
+    "event": "run",
+    "score": 34.0,
+    "log": "Initial brain score: 34",
+    "mutated": false,
+    "time": "2025-08-08T02:16:00.027256Z"
+  },
+  {
+    "event": "run",
+    "score": 78.0,
+    "log": "Initial brain score: 78",
+    "mutated": false,
+    "time": "2025-08-08T02:16:02.544284Z"
+  },
+  {
+    "event": "run",
+    "score": 42.0,
+    "log": "Initial brain score: 42",
+    "mutated": false,
+    "time": "2025-08-08T02:16:05.055429Z"
+  },
+  {
+    "event": "run",
+    "score": 58.0,
+    "log": "Initial brain score: 58",
+    "mutated": false,
+    "time": "2025-08-08T02:16:07.569384Z"
+  },
+  {
+    "event": "run",
+    "score": 96.0,
+    "log": "Initial brain score: 96",
+    "mutated": false,
+    "time": "2025-08-08T02:16:10.083063Z"
+  },
+  {
+    "event": "run",
+    "score": 43.0,
+    "log": "Initial brain score: 43",
+    "mutated": false,
+    "time": "2025-08-08T02:16:12.600158Z"
+  },
+  {
+    "event": "run",
+    "score": 46.0,
+    "log": "Initial brain score: 46",
+    "mutated": false,
+    "time": "2025-08-08T02:16:15.112570Z"
+  }
+]
